@@ -14,14 +14,19 @@ server {
 	ssl_certificate /etc/ssl/certs/localhost.crt;
 	ssl_certificate_key /etc/ssl/certs/localhost.key;
 
-    root /var/www/html;
+    root /var/www/localhost;
     index index.php index.html index.htm index.nginx-debian.html;
 
     server_name localhost;
 
     location / {
+		autoindex on;
         try_files $uri $uri/ =404;
     }
+
+	location /auto/ {
+    autoindex on;
+	}
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
