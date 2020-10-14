@@ -31,19 +31,28 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 -subj '/C=NL/ST=Noord-Ho
 #set user
 ARG user=juvan-de
 ARG password=password
-
 ENV AUTO_INDEX=on
-#mariadb setup
-RUN service mysql start  && \
-	mysql -e "CREATE DATABASE wordpress;" && \
-	mysql -e "GRANT ALL PRIVILEGES ON *.* TO '${user}'@'localhost' IDENTIFIED BY '${password}';" && \
-	mysql -e "FLUSH PRIVILEGES;"
+
+#copy necessary files
+COPY srcs/php.ini /etc/php/7.3/fpm/ 
 
 #installing phpmyadmin
 RUN wget  -c https://files.phpmyadmin.net/phpMyAdmin/4.9.5/phpMyAdmin-4.9.5-english.tar.gz && \
 	tar -xzvf phpMyAdmin-4.9.5-english.tar.gz && \
 	mv	phpMyAdmin-4.9.5-english /var/www/localhost/phpMyAdmin && \
 	rm -rf phpMyAdmin-4.9.5-english.tar.gz
+
+#doing the blowfish cookie thing
+RUN rm var/www/localhost/phpMyAdmin/config.sample.inc.php
+COPY srcs/config.inc.php var/www/localhost/phpMyAdmin/
+
+#mariadb setup
+RUN service mysql start  && \
+	mysql -e "CREATE DATABASE wordpress;" && \
+	mysql -e "CREATE DATABASE phpmyadmin;" && \
+	mysql phpmyadmin < var/www/localhost/phpMyAdmin/sql/create_tables.sql && \
+	mysql -e "GRANT ALL PRIVILEGES ON *.* TO '${user}'@'localhost' IDENTIFIED BY '${password}';" && \
+	mysql -e "FLUSH PRIVILEGES;"
 
 #php setup
 RUN mv /var/www/html/index.nginx-debian.html /var/www/localhost
@@ -61,6 +70,8 @@ RUN	service mysql start && \
 	wp config create --path=/var/www/localhost/wordpress --dbname=wordpress --dbuser=${user} --dbpass=${password} --allow-root && \
 	wp core install --path=/var/www/localhost/wordpress --url=localhost/wordpress --title="ft_server" --admin_user=${user} --admin_password=${password} --admin_email=juvan@server.nl --allow-root
 
+RUN chown -R www-data:www-data /var/www/ && \
+	chown -R www-data:www-data /var/lib/php/sessions/
 COPY srcs/autoindex.sh /
 RUN	chmod +x autoindex.sh
 
